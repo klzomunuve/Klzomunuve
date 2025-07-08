@@ -1,0 +1,233 @@
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Search, Download, Filter, Eye, Calendar, DollarSign, Users, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+
+interface AdminDashboardProps {
+  onBack: () => void;
+}
+
+interface Payment {
+  studentName: string;
+  admissionNumber: string;
+  class: string;
+  amount: string;
+  phoneNumber: string;
+  transactionId: string;
+  timestamp: string;
+  status: string;
+}
+
+const AdminDashboard = ({ onBack }: AdminDashboardProps) => {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredPayments, setFilteredPayments] = useState<Payment[]>([]);
+
+  useEffect(() => {
+    // Load payments from localStorage
+    const storedPayments = JSON.parse(localStorage.getItem('schoolPayments') || '[]');
+    setPayments(storedPayments);
+    setFilteredPayments(storedPayments);
+  }, []);
+
+  useEffect(() => {
+    // Filter payments based on search term
+    if (searchTerm) {
+      const filtered = payments.filter(payment => 
+        payment.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        payment.class.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredPayments(filtered);
+    } else {
+      setFilteredPayments(payments);
+    }
+  }, [searchTerm, payments]);
+
+  const exportToCSV = () => {
+    const headers = ['Student Name', 'Admission Number', 'Class', 'Amount (KES)', 'Phone Number', 'Transaction ID', 'Date', 'Status'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredPayments.map(payment => [
+        payment.studentName,
+        payment.admissionNumber,
+        payment.class,
+        payment.amount,
+        payment.phoneNumber,
+        payment.transactionId,
+        new Date(payment.timestamp).toLocaleDateString(),
+        payment.status
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `school-payments-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const totalAmount = filteredPayments.reduce((sum, payment) => sum + parseFloat(payment.amount || '0'), 0);
+  const totalPayments = filteredPayments.length;
+  const uniqueStudents = new Set(filteredPayments.map(p => p.admissionNumber)).size;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 py-8 px-4">
+      <div className="max-w-7xl mx-auto">
+        <Button 
+          variant="ghost" 
+          onClick={onBack}
+          className="mb-6 hover:bg-blue-50"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Home
+        </Button>
+
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+          <p className="text-gray-600">Manage and monitor school fee payments</p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Payments</p>
+                  <p className="text-3xl font-bold text-gray-900">{totalPayments}</p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Calendar className="h-8 w-8 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total Amount</p>
+                  <p className="text-3xl font-bold text-gray-900">KES {totalAmount.toLocaleString()}</p>
+                </div>
+                <div className="bg-green-100 p-3 rounded-full">
+                  <DollarSign className="h-8 w-8 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Unique Students</p>
+                  <p className="text-3xl font-bold text-gray-900">{uniqueStudents}</p>
+                </div>
+                <div className="bg-purple-100 p-3 rounded-full">
+                  <Users className="h-8 w-8 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Controls */}
+        <Card className="mb-6 border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Filter className="h-5 w-5 mr-2" />
+              Payment Records
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by student name, admission number, or class..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-12"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={exportToCSV}
+                variant="outline"
+                className="h-12 px-6"
+                disabled={filteredPayments.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+
+            {/* Payment Table */}
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-semibold">Student Details</TableHead>
+                    <TableHead className="font-semibold">Class</TableHead>
+                    <TableHead className="font-semibold">Amount</TableHead>
+                    <TableHead className="font-semibold">Transaction</TableHead>
+                    <TableHead className="font-semibold">Date</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPayments.length > 0 ? (
+                    filteredPayments.map((payment, index) => (
+                      <TableRow key={index} className="hover:bg-gray-50">
+                        <TableCell>
+                          <div>
+                            <p className="font-medium text-gray-900">{payment.studentName}</p>
+                            <p className="text-sm text-gray-500">{payment.admissionNumber}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="capitalize">{payment.class.replace('-', ' ')}</TableCell>
+                        <TableCell className="font-medium">KES {parseFloat(payment.amount).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-mono text-sm">{payment.transactionId}</p>
+                            <p className="text-xs text-gray-500">{payment.phoneNumber}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>{new Date(payment.timestamp).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={payment.status === 'completed' ? 'default' : 'secondary'}
+                            className={payment.status === 'completed' ? 'bg-green-100 text-green-800' : ''}
+                          >
+                            {payment.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                        {searchTerm ? 'No payments found matching your search.' : 'No payments recorded yet.'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default AdminDashboard;
