@@ -1,1 +1,0 @@
-export const Badge = ({ children, className = '', variant }: any) => <span className={`badge ${className}`}>{children}</span>;
